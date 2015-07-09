@@ -1,0 +1,1378 @@
+Thomas Petazzoni thomas.petazzoni at free-electrons.com 
+Sat Feb 14 16:46:27 UTC 2015
+=============================================================
+note by rxrh0r_x0d
+terminal start no Penetration testing tools for 2015
+Patch by "byt33bl3d3r" 
+.........................
+/\/\/\/\/\/\/\/\/\
+\/\/\/\/\/\/\/\/\/
+.........................
+
+commit: http://git.buildroot.net/buildroot/commit/?id=161c6aaf95c3daf1c179c9dd03a9ec19ebdb9b82
+branch: http://git.buildroot.net/buildroot/commit/?id=refs/heads/next
+
+Signed-off-by: "Yann E. MORIN" <yann.morin.1998 at free.fr>
+Signed-off-by: Thomas Petazzoni <thomas.petazzoni at free-electrons.com>
+---
+ package/aiccu/Config.in                            |    2 -
+ package/fio/Config.in                              |    6 +-
+ package/iputils/Config.in                          |    2 -
+ package/libglib2/libglib2.mk                       |    2 +-
+ package/mtr/Config.in                              |    2 -
+ .../0.9.31.1/0001-add-bsd-endian-conversions.patch |   64 -----
+ .../uclibc/0.9.31.1/0002-add-inotify-init1.patch   |   64 -----
+ .../uclibc/0.9.31.1/0003-add-sock-cloexec.patch    |   43 ----
+ .../uclibc/0.9.31.1/0004-export-strverscmp.patch   |   30 ---
+ .../0005-fix-daylight-saving-time-handling.patch   |   36 ---
+ .../0.9.31.1/0006-fix-error-locale-utf-8.patch     |   17 --
+ .../0.9.31.1/0007-linuxthreads-errno-fix.patch     |   98 --------
+ .../0008-more-workarounds-GCC-PR32219.patch        |   40 ---
+ package/uclibc/0.9.31.1/0009-unshare.patch         |   74 ------
+ .../0.9.31.1/0010-workaround-GCC-PR32219.patch     |   57 -----
+ .../0.9.31.1/0011-startfiles-Make-targets.patch    |   60 -----
+ .../0.9.31.1/0012-netlinkaccess-header-types.patch |   35 ---
+ ...deps-add-__kernel_long-and-__kernel_ulong.patch |   21 --
+ ...clude-__iconv_codesets-into-iconv-utility.patch |   79 ------
+ ...deps-add-__kernel_long-and-__kernel_ulong.patch |   20 +--
+ .../0005-Patch-from-OpenWRT-for-avr32.patch        |   28 --
+ package/uclibc/Config.in                           |   12 +-
+ package/uclibc/uClibc-0.9.31.config                |  258 --------------------
+ package/uclibc/uclibc.mk                           |   27 +--
+ 24 files changed, 11 insertions(+), 1066 deletions(-)
+
+diff --git a/package/aiccu/Config.in b/package/aiccu/Config.in
+index df184fa..bd67bac 100644
+--- a/package/aiccu/Config.in
++++ b/package/aiccu/Config.in
+@@ -4,8 +4,6 @@ config BR2_PACKAGE_AICCU
+ 	depends on BR2_USE_WCHAR
+ 	depends on BR2_TOOLCHAIN_HAS_THREADS
+ 	depends on BR2_USE_MMU # fork()
+-	# Uses dn_skipname(), only available since 0.9.33
+-	depends on !BR2_UCLIBC_VERSION_0_9_31
+ 	# Triggers the _gp link issue
+ 	depends on !BR2_TOOLCHAIN_EXTERNAL_CODESOURCERY_NIOSII201305
+ 	depends on !BR2_TOOLCHAIN_EXTERNAL_CODESOURCERY_NIOSII201405
+diff --git a/package/fio/Config.in b/package/fio/Config.in
+index 8cbbf6c..219b9d9 100644
+--- a/package/fio/Config.in
++++ b/package/fio/Config.in
+@@ -7,10 +7,8 @@ config BR2_PACKAGE_FIO
+ 	# release of uClibc, but is part of uClibc Git, and backported
+ 	# in Buildroot patch set of uClibc 0.9.33. Therefore, we
+ 	# disable the build of fio for external uClibc toolchains
+-	# (which use an unknown uClibc version) and for 0.9.31 which
+-	# don't have posix_madvise().
+-	depends on !BR2_TOOLCHAIN_EXTERNAL_UCLIBC && \
+-		!BR2_UCLIBC_VERSION_0_9_31
++	# (which use an unknown uClibc version)
++	depends on !BR2_TOOLCHAIN_EXTERNAL_UCLIBC
+ 	# fio uses fallocate() which becomes fallocate64() while compiling
+ 	# with BR2_LARGEFILE but fallocate64() is not available on nios2
+ 	depends on !BR2_nios2
+diff --git a/package/iputils/Config.in b/package/iputils/Config.in
+index ac1218f..fdddb52 100644
+--- a/package/iputils/Config.in
++++ b/package/iputils/Config.in
+@@ -2,8 +2,6 @@ config BR2_PACKAGE_IPUTILS
+ 	bool "iputils"
+ 	select BR2_PACKAGE_OPENSSL if BR2_INET_IPV6
+ 	depends on BR2_USE_MMU # fork()
+-	# requires dn_comp (only available in since uclibc 0.9.33)
+-	depends on !BR2_UCLIBC_VERSION_0_9_31
+ 	help
+ 	  This package is set of small useful utilities for Linux networking.
+ 	  It includes complete versions of ping, traceroute, etc.
+diff --git a/package/libglib2/libglib2.mk b/package/libglib2/libglib2.mk
+index fa909cd..991c972 100644
+--- a/package/libglib2/libglib2.mk
++++ b/package/libglib2/libglib2.mk
+@@ -49,7 +49,7 @@ LIBGLIB2_CONF_ENV = \
+ 	gt_cv_c_wchar_t=$(if $(BR2_USE_WCHAR),yes,no)
+ 
+ # old uClibc versions don't provide qsort_r
+-ifeq ($(BR2_UCLIBC_VERSION_0_9_31)$(BR2_TOOLCHAIN_EXTERNAL_UCLIBC)$(BR2_TOOLCHAIN_EXTERNAL_XILINX_MICROBLAZEEL_V2)$(BR2_TOOLCHAIN_EXTERNAL_XILINX_MICROBLAZEBE_V2),y)
++ifeq ($(BR2_TOOLCHAIN_EXTERNAL_UCLIBC)$(BR2_TOOLCHAIN_EXTERNAL_XILINX_MICROBLAZEEL_V2)$(BR2_TOOLCHAIN_EXTERNAL_XILINX_MICROBLAZEBE_V2),y)
+ LIBGLIB2_CONF_ENV += glib_cv_have_qsort_r=no
+ else
+ LIBGLIB2_CONF_ENV += glib_cv_have_qsort_r=yes
+diff --git a/package/mtr/Config.in b/package/mtr/Config.in
+index f3060a1..5e2d5b2 100644
+--- a/package/mtr/Config.in
++++ b/package/mtr/Config.in
+@@ -1,7 +1,5 @@
+ config BR2_PACKAGE_MTR
+ 	bool "mtr"
+-	# res_mkquery() only available in 0.9.33+
+-	depends on !BR2_UCLIBC_VERSION_0_9_31
+ 	help
+ 	  mtr combines the functionality of the 'traceroute' and 'ping'
+ 	  programs in a single network diagnostic tool.
+diff --git a/package/uclibc/0.9.31.1/0001-add-bsd-endian-conversions.patch b/package/uclibc/0.9.31.1/0001-add-bsd-endian-conversions.patch
+deleted file mode 100644
+index 652d7c9..0000000
+--- a/package/uclibc/0.9.31.1/0001-add-bsd-endian-conversions.patch
++++ /dev/null
+@@ -1,64 +0,0 @@
+-From c6d6237819037168a6923ac080e348e54615422c Mon Sep 17 00:00:00 2001
+-From: Vladimir Zapolskiy <vzapolskiy at gmail.com>
+-Date: Tue, 1 Jun 2010 23:22:57 +0400
+-Subject: [PATCH] endian.h: add BSD convertions between big/little-endian byte order
+-
+-This patch adds support for convertion of values between host and
+-big-/little-endian byte order.
+-
+-Signed-off-by: Vladimir Zapolskiy <vzapolskiy at gmail.com>
+-Signed-off-by: Bernhard Reutner-Fischer <rep.dot.nop at gmail.com>
+----
+- include/endian.h |   38 ++++++++++++++++++++++++++++++++++++++
+- 1 files changed, 38 insertions(+), 0 deletions(-)
+-
+-diff --git a/include/endian.h b/include/endian.h
+-index 2f7bce1..0ba7384 100644
+---- a/include/endian.h
+-+++ b/include/endian.h
+-@@ -55,4 +55,42 @@
+- # define __LONG_LONG_PAIR(HI, LO) HI, LO
+- #endif
+- 
+-+
+-+#ifdef __USE_BSD
+-+/* Conversion interfaces.  */
+-+# include <byteswap.h>
+-+
+-+# if __BYTE_ORDER == __LITTLE_ENDIAN
+-+#  define htobe16(x) __bswap_16 (x)
+-+#  define htole16(x) (x)
+-+#  define be16toh(x) __bswap_16 (x)
+-+#  define le16toh(x) (x)
+-+
+-+#  define htobe32(x) __bswap_32 (x)
+-+#  define htole32(x) (x)
+-+#  define be32toh(x) __bswap_32 (x)
+-+#  define le32toh(x) (x)
+-+
+-+#  define htobe64(x) __bswap_64 (x)
+-+#  define htole64(x) (x)
+-+#  define be64toh(x) __bswap_64 (x)
+-+#  define le64toh(x) (x)
+-+# else
+-+#  define htobe16(x) (x)
+-+#  define htole16(x) __bswap_16 (x)
+-+#  define be16toh(x) (x)
+-+#  define le16toh(x) __bswap_16 (x)
+-+
+-+#  define htobe32(x) (x)
+-+#  define htole32(x) __bswap_32 (x)
+-+#  define be32toh(x) (x)
+-+#  define le32toh(x) __bswap_32 (x)
+-+
+-+#  define htobe64(x) (x)
+-+#  define htole64(x) __bswap_64 (x)
+-+#  define be64toh(x) (x)
+-+#  define le64toh(x) __bswap_64 (x)
+-+# endif
+-+#endif
+-+
+- #endif	/* endian.h */
+--- 
+-1.7.3.4
+-
+diff --git a/package/uclibc/0.9.31.1/0002-add-inotify-init1.patch b/package/uclibc/0.9.31.1/0002-add-inotify-init1.patch
+deleted file mode 100644
+index cbec426..0000000
+--- a/package/uclibc/0.9.31.1/0002-add-inotify-init1.patch
++++ /dev/null
+@@ -1,64 +0,0 @@
+-From a2e5630af426f85fdd8721b2820786d9bd2aa695 Mon Sep 17 00:00:00 2001
+-From: Vladimir Zapolskiy <vzapolskiy at gmail.com>
+-Date: Tue, 1 Jun 2010 20:02:54 +0400
+-Subject: [PATCH] inotify: add inotify_init1 system call support
+-
+-This patch introduces support for inotify_init1 system call, found
+-since Linux 2.6.27.
+-
+-Signed-off-by: Vladimir Zapolskiy <vzapolskiy at gmail.com>
+-Signed-off-by: Khem Raj <raj.khem at gmail.com>
+----
+- libc/sysdeps/linux/common/inotify.c     |    4 ++++
+- libc/sysdeps/linux/common/sys/inotify.h |   13 +++++++++++++
+- 2 files changed, 17 insertions(+), 0 deletions(-)
+-
+-diff --git a/libc/sysdeps/linux/common/inotify.c b/libc/sysdeps/linux/common/inotify.c
+-index e5a6120..e35f043 100644
+---- a/libc/sysdeps/linux/common/inotify.c
+-+++ b/libc/sysdeps/linux/common/inotify.c
+-@@ -15,6 +15,10 @@
+- _syscall0(int, inotify_init)
+- #endif
+- 
+-+#ifdef __NR_inotify_init1
+-+_syscall1(int, inotify_init1, int, flags)
+-+#endif
+-+
+- #ifdef __NR_inotify_add_watch
+- _syscall3(int, inotify_add_watch, int, fd, const char *, path, uint32_t, mask)
+- #endif
+-diff --git a/libc/sysdeps/linux/common/sys/inotify.h b/libc/sysdeps/linux/common/sys/inotify.h
+-index 0131db9..dc4e19d 100644
+---- a/libc/sysdeps/linux/common/sys/inotify.h
+-+++ b/libc/sysdeps/linux/common/sys/inotify.h
+-@@ -22,6 +22,16 @@
+- #include <stdint.h>
+- 
+- 
+-+/* Flags for the parameter of inotify_init1.  */
+-+enum
+-+  {
+-+    IN_CLOEXEC = 02000000,
+-+#define IN_CLOEXEC IN_CLOEXEC
+-+    IN_NONBLOCK = 04000
+-+#define IN_NONBLOCK IN_NONBLOCK
+-+  };
+-+
+-+
+- /* Structure describing an inotify event.  */
+- struct inotify_event
+- {
+-@@ -79,6 +89,9 @@ __BEGIN_DECLS
+- /* Create and initialize inotify instance.  */
+- extern int inotify_init (void) __THROW;
+- 
+-+/* Create and initialize inotify instance.  */
+-+extern int inotify_init1 (int __flags) __THROW;
+-+
+- /* Add watch of object NAME to inotify instance FD.  Notify about
+-    events specified by MASK.  */
+- extern int inotify_add_watch (int __fd, const char *__name, uint32_t __mask)
+--- 
+-1.7.3.4
+-
+diff --git a/package/uclibc/0.9.31.1/0003-add-sock-cloexec.patch b/package/uclibc/0.9.31.1/0003-add-sock-cloexec.patch
+deleted file mode 100644
+index a7089a9..0000000
+--- a/package/uclibc/0.9.31.1/0003-add-sock-cloexec.patch
++++ /dev/null
+@@ -1,43 +0,0 @@
+-From 83333e9c873e4eca6b2c945f7770b1f5373b0427 Mon Sep 17 00:00:00 2001
+-From: Vladimir Zapolskiy <vzapolskiy at gmail.com>
+-Date: Tue, 1 Jun 2010 20:02:39 +0400
+-Subject: [PATCH] bits/socket.h: add SOCK_CLOEXEC and SOCK_NONBLOCK support
+-
+-This patch adds support for SOCK_CLOEXEC and SOCK_NONBLOCK socket
+-descriptor flags, which are introduced since Linux 2.6.27
+-
+-Signed-off-by: Vladimir Zapolskiy <vzapolskiy at gmail.com>
+-Signed-off-by: Khem Raj <raj.khem at gmail.com>
+----
+- libc/sysdeps/linux/common/bits/socket.h |   12 +++++++++++-
+- 1 files changed, 11 insertions(+), 1 deletions(-)
+-
+-diff --git a/libc/sysdeps/linux/common/bits/socket.h b/libc/sysdeps/linux/common/bits/socket.h
+-index ac5a433..11f6e97 100644
+---- a/libc/sysdeps/linux/common/bits/socket.h
+-+++ b/libc/sysdeps/linux/common/bits/socket.h
+-@@ -53,10 +53,20 @@ enum __socket_type
+-   SOCK_SEQPACKET = 5,		/* Sequenced, reliable, connection-based,
+- 				   datagrams of fixed maximum length.  */
+- #define SOCK_SEQPACKET SOCK_SEQPACKET
+--  SOCK_PACKET = 10		/* Linux specific way of getting packets
+-+  SOCK_PACKET = 10,		/* Linux specific way of getting packets
+- 				   at the dev level.  For writing rarp and
+- 				   other similar things on the user level. */
+- #define SOCK_PACKET SOCK_PACKET
+-+
+-+  /* Flags to be ORed into the type parameter of socket and socketpair and
+-+     used for the flags parameter of paccept.  */
+-+
+-+  SOCK_CLOEXEC = 02000000,	/* Atomically set close-on-exec flag for the
+-+				   new descriptor(s).  */
+-+#define SOCK_CLOEXEC SOCK_CLOEXEC
+-+  SOCK_NONBLOCK = 04000		/* Atomically mark descriptor(s) as
+-+				   non-blocking.  */
+-+#define SOCK_NONBLOCK SOCK_NONBLOCK
+- };
+- 
+- /* Protocol families.  */
+--- 
+-1.7.3.4
+-
+diff --git a/package/uclibc/0.9.31.1/0004-export-strverscmp.patch b/package/uclibc/0.9.31.1/0004-export-strverscmp.patch
+deleted file mode 100644
+index 19bc021..0000000
+--- a/package/uclibc/0.9.31.1/0004-export-strverscmp.patch
++++ /dev/null
+@@ -1,30 +0,0 @@
+-From 139b8f0c673fed465d27f99c98568e5d5e1b9b72 Mon Sep 17 00:00:00 2001
+-From: Denys Vlasenko <vda.linux at googlemail.com>
+-Date: Fri, 4 Jun 2010 13:36:30 +0200
+-Subject: [PATCH] strverscmp: I forgot to export it
+-
+-Result was:
+-
+-strverscmp.o:
+-000000ec T __GI_strverscmp
+-
+-i.e. no plain "strverscmp"!
+-
+-Signed-off-by: Denys Vlasenko <vda.linux at googlemail.com>
+-Signed-off-by: Gustavo Zacarias <gustavo at zacarias.com.ar>
+----
+- libc/string/strverscmp.c |    1 +
+- 1 files changed, 1 insertions(+), 0 deletions(-)
+-
+-diff --git a/libc/string/strverscmp.c b/libc/string/strverscmp.c
+-index 74ae4c6..b19e8f0 100644
+---- a/libc/string/strverscmp.c
+-+++ b/libc/string/strverscmp.c
+-@@ -115,3 +115,4 @@ int strverscmp (const char *s1, const char *s2)
+-       return state;
+-   }
+- }
+-+libc_hidden_def(strverscmp)
+--- 
+-1.7.3.4
+-
+diff --git a/package/uclibc/0.9.31.1/0005-fix-daylight-saving-time-handling.patch b/package/uclibc/0.9.31.1/0005-fix-daylight-saving-time-handling.patch
+deleted file mode 100644
+index 5a96113..0000000
+--- a/package/uclibc/0.9.31.1/0005-fix-daylight-saving-time-handling.patch
++++ /dev/null
+@@ -1,36 +0,0 @@
+-From 47f3da1cf49377c25772bb54d07db55225bbb142 Mon Sep 17 00:00:00 2001
+-From: Guillaume Bourcier <guillaumebourcier at free.fr>
+-Date: Tue, 11 Oct 2011 13:45:33 +0200
+-Subject: [PATCH] libc: fix daylight saving time handling
+-
+-The algorithm computing daylight saving time incorrectly adds a day for
+-each month after January for leap years. The clock shift from/to DST can
+-be delayed if the last Sunday of a transition month is exactly seven
+-days before the first of the following month.
+-
+-This change adds a day for the February month only.
+-
+-Signed-off-by: Guillaume Bourcier <guillaumebourcier at free.fr>
+-Signed-off-by: Richard Braun <rbraun at sceen.net>
+-Signed-off-by: Carmelo Amoroso <carmelo.amoroso at st.com>
+-Signed-off-by: Gustavo Zacarias <gustavo at zacarias.com.ar>
+----
+- libc/misc/time/time.c |    2 +-
+- 1 files changed, 1 insertions(+), 1 deletions(-)
+-
+-diff --git a/libc/misc/time/time.c b/libc/misc/time/time.c
+-index 19d68e1..8e2ebf1 100644
+---- a/libc/misc/time/time.c
+-+++ b/libc/misc/time/time.c
+-@@ -689,7 +689,7 @@ static int tm_isdst(register const struct tm *__restrict ptm,
+- 					++day;
+- 				}
+- 				monlen = 31 + day_cor[r->month -1] - day_cor[r->month];
+--				if (isleap && (r->month > 1)) {
+-+				if (isleap && (r->month == 2)) {
+- 					++monlen;
+- 				}
+- 				/* Wweekday (0 is Sunday) of 1st of the month
+--- 
+-1.7.3.4
+-
+diff --git a/package/uclibc/0.9.31.1/0006-fix-error-locale-utf-8.patch b/package/uclibc/0.9.31.1/0006-fix-error-locale-utf-8.patch
+deleted file mode 100644
+index 1305add..0000000
+--- a/package/uclibc/0.9.31.1/0006-fix-error-locale-utf-8.patch
++++ /dev/null
+@@ -1,17 +0,0 @@
+----
+- extra/locale/gen_wc8bit.c |    2 +-
+- 1 file changed, 1 insertion(+), 1 deletion(-)
+-
+-Index: uClibc-0.9.31/extra/locale/gen_wc8bit.c
+-===================================================================
+---- uClibc-0.9.31.orig/extra/locale/gen_wc8bit.c
+-+++ uClibc-0.9.31/extra/locale/gen_wc8bit.c
+-@@ -120,7 +120,7 @@
+- 		}
+- 
+-  locale_failure:
+--		printf("could not find a UTF8 locale ... please enable en_US.UTF-8\n");
+-+		fprintf(stderr, "could not find a UTF8 locale ... please enable en_US.UTF-8\n");
+- 		return EXIT_FAILURE;
+-  locale_success:
+- 		pclose(fp);
+diff --git a/package/uclibc/0.9.31.1/0007-linuxthreads-errno-fix.patch b/package/uclibc/0.9.31.1/0007-linuxthreads-errno-fix.patch
+deleted file mode 100644
+index c49821b..0000000
+--- a/package/uclibc/0.9.31.1/0007-linuxthreads-errno-fix.patch
++++ /dev/null
+@@ -1,98 +0,0 @@
+-From af8b2d71ce37b9d4d24ddbc755cdea68de02949a Mon Sep 17 00:00:00 2001
+-From: Peter Korsgaard <jacmet at sunsite.dk>
+-Date: Mon, 5 Jul 2010 14:08:17 +0200
+-Subject: [PATCH] don't make __errno_location / __h_errno_location hidden
+-
+-Closes #2089 (https://bugs.busybox.net/show_bug.cgi?id=2089)
+-
+-__errno_location / __h_errno_location access has to go through the PLT
+-like malloc/free, so the linuxthread variants gets used instead when
+-compiling with -pthread.
+-
+-Based on http://github.com/mat-c/uClibc/commit/328d392c54aa5dc2b8e7f398a419087de497de2b
+-
+-Signed-off-by: Peter Korsgaard <jacmet at sunsite.dk>
+----
+- include/netdb.h                               |    1 -
+- libc/misc/internals/__errno_location.c        |    3 ---
+- libc/misc/internals/__h_errno_location.c      |    1 -
+- libc/misc/internals/__uClibc_main.c           |    2 --
+- libc/sysdeps/linux/common/bits/errno.h        |    1 -
+- libc/sysdeps/linux/common/bits/uClibc_errno.h |    3 ---
+- 6 files changed, 0 insertions(+), 11 deletions(-)
+-
+-diff --git a/include/netdb.h b/include/netdb.h
+-index 9d3807d..ac411ab 100644
+---- a/include/netdb.h
+-+++ b/include/netdb.h
+-@@ -59,7 +59,6 @@ __BEGIN_DECLS
+- 
+- /* Function to get address of global `h_errno' variable.  */
+- extern int *__h_errno_location (void) __THROW __attribute__ ((__const__));
+--libc_hidden_proto(__h_errno_location)
+- 
+- /* Macros for accessing h_errno from inside libc.  */
+- #ifdef _LIBC
+-diff --git a/libc/misc/internals/__errno_location.c b/libc/misc/internals/__errno_location.c
+-index 487a9c2..0620860 100644
+---- a/libc/misc/internals/__errno_location.c
+-+++ b/libc/misc/internals/__errno_location.c
+-@@ -11,6 +11,3 @@ int * weak_const_function __errno_location (void)
+- {
+-     return &errno;
+- }
+--#ifdef IS_IN_libc /* not really need, only to keep in sync w/ libc_hidden_proto */
+--libc_hidden_weak(__errno_location)
+--#endif
+-diff --git a/libc/misc/internals/__h_errno_location.c b/libc/misc/internals/__h_errno_location.c
+-index 213d398..235df4e 100644
+---- a/libc/misc/internals/__h_errno_location.c
+-+++ b/libc/misc/internals/__h_errno_location.c
+-@@ -10,4 +10,3 @@ int * weak_const_function __h_errno_location (void)
+- {
+-     return &h_errno;
+- }
+--libc_hidden_weak(__h_errno_location)
+-diff --git a/libc/misc/internals/__uClibc_main.c b/libc/misc/internals/__uClibc_main.c
+-index 6e520fa..f4a9ebb 100644
+---- a/libc/misc/internals/__uClibc_main.c
+-+++ b/libc/misc/internals/__uClibc_main.c
+-@@ -64,9 +64,7 @@ void internal_function _dl_aux_init (ElfW(auxv_t) *av);
+-  * Prototypes.
+-  */
+- extern int *weak_const_function __errno_location(void);
+--libc_hidden_proto(__errno_location)
+- extern int *weak_const_function __h_errno_location(void);
+--libc_hidden_proto(__h_errno_location)
+- 
+- extern void weak_function _stdio_init(void) attribute_hidden;
+- #ifdef __UCLIBC_HAS_LOCALE__
+-diff --git a/libc/sysdeps/linux/common/bits/errno.h b/libc/sysdeps/linux/common/bits/errno.h
+-index 0bf6354..de9688a 100644
+---- a/libc/sysdeps/linux/common/bits/errno.h
+-+++ b/libc/sysdeps/linux/common/bits/errno.h
+-@@ -43,7 +43,6 @@
+- # ifndef __ASSEMBLER__
+- /* Function to get address of global `errno' variable.  */
+- extern int *__errno_location (void) __THROW __attribute__ ((__const__));
+--libc_hidden_proto(__errno_location)
+- 
+- #  ifdef __UCLIBC_HAS_THREADS__
+- /* When using threads, errno is a per-thread value.  */
+-diff --git a/libc/sysdeps/linux/common/bits/uClibc_errno.h b/libc/sysdeps/linux/common/bits/uClibc_errno.h
+-index 9c15618..79eb7e6 100644
+---- a/libc/sysdeps/linux/common/bits/uClibc_errno.h
+-+++ b/libc/sysdeps/linux/common/bits/uClibc_errno.h
+-@@ -33,9 +33,6 @@ extern int *__errno_location (void) __THROW __attribute__ ((__const__))
+- ;
+- # if defined __UCLIBC_HAS_THREADS__
+- #  include <tls.h>
+--#  if defined USE___THREAD && USE___THREAD
+--libc_hidden_proto(__errno_location)
+--#  endif
+- # endif
+- 
+- #endif /* !__ASSEMBLER__ */
+--- 
+-1.7.1
+-
+diff --git a/package/uclibc/0.9.31.1/0008-more-workarounds-GCC-PR32219.patch b/package/uclibc/0.9.31.1/0008-more-workarounds-GCC-PR32219.patch
+deleted file mode 100644
+index 9e69532..0000000
+--- a/package/uclibc/0.9.31.1/0008-more-workarounds-GCC-PR32219.patch
++++ /dev/null
+@@ -1,40 +0,0 @@
+-From aa67771881d65373da448ad5f7a8393f3a1d9469 Mon Sep 17 00:00:00 2001
+-From: =?UTF-8?q?Timo=20Ter=C3=A4s?= <timo.teras at iki.fi>
+-Date: Wed, 30 Jun 2010 14:46:37 +0300
+-Subject: [PATCH] more workarounds for GCC PR32219
+-MIME-Version: 1.0
+-Content-Type: text/plain; charset=UTF-8
+-Content-Transfer-Encoding: 8bit
+-
+-Commit 2e53dd645d5348f207cec7f8595969dc566c5a55 workarounds GCC
+-bug when accessing _locale_init and _stdio_init. We need the same
+-fix for __errno_location and __h_errno_location otherwise we crash
+-calling null with static and non-threaded builds.
+-
+-Signed-off-by: Timo TerÃ¤s <timo.teras at iki.fi>
+-Signed-off-by: Bernhard Reutner-Fischer <rep.dot.nop at gmail.com>
+----
+- libc/misc/internals/__uClibc_main.c |    4 ++--
+- 1 files changed, 2 insertions(+), 2 deletions(-)
+-
+-diff --git a/libc/misc/internals/__uClibc_main.c b/libc/misc/internals/__uClibc_main.c
+-index 3f09ad2..58f6643 100644
+---- a/libc/misc/internals/__uClibc_main.c
+-+++ b/libc/misc/internals/__uClibc_main.c
+-@@ -447,11 +447,11 @@ void __uClibc_main(int (*main)(int, char **, char **), int argc,
+-      * have resulted in errno being set nonzero, so set it to 0 before
+-      * we call main.
+-      */
+--    if (likely(__errno_location!=NULL))
+-+    if (likely(not_null_ptr(__errno_location)))
+- 	*(__errno_location()) = 0;
+- 
+-     /* Set h_errno to 0 as well */
+--    if (likely(__h_errno_location!=NULL))
+-+    if (likely(not_null_ptr(__h_errno_location)))
+- 	*(__h_errno_location()) = 0;
+- 
+- #if defined HAVE_CLEANUP_JMP_BUF && defined __UCLIBC_HAS_THREADS_NATIVE__
+--- 
+-1.7.1
+-
+diff --git a/package/uclibc/0.9.31.1/0009-unshare.patch b/package/uclibc/0.9.31.1/0009-unshare.patch
+deleted file mode 100644
+index ad440d9..0000000
+--- a/package/uclibc/0.9.31.1/0009-unshare.patch
++++ /dev/null
+@@ -1,74 +0,0 @@
+-Backport of unshare() syscall.
+-From uClibc git 19dd090a0f68765db87990ef8eda9bf77bb29581
+-
+-Signed-off-by: Gustavo Zacarias <gustavo at zacarias.com.ar>
+-
+----
+-diff -Nura uClibc-0.9.31.1.orig/libc/sysdeps/linux/common/bits/sched.h uClibc-0.9.31.1/libc/sysdeps/linux/common/bits/sched.h
+---- uClibc-0.9.31.1.orig/libc/sysdeps/linux/common/bits/sched.h	2011-06-08 15:58:40.000000000 -0300
+-+++ uClibc-0.9.31.1/libc/sysdeps/linux/common/bits/sched.h	2011-12-05 08:10:02.491978849 -0300
+-@@ -58,7 +58,13 @@
+- 				      force CLONE_PTRACE on this clone.  */
+- # define CLONE_CHILD_SETTID 0x01000000 /* Store TID in userlevel buffer in
+- 					  the child.  */
+--# define CLONE_STOPPED	0x02000000 /* Start in stopped state.  */
+-+# define CLONE_STOPPED 0x02000000 /* Start in stopped state.  */
+-+# define CLONE_NEWUTS  0x04000000      /* New utsname group.  */
+-+# define CLONE_NEWIPC  0x08000000      /* New ipcs.  */
+-+# define CLONE_NEWUSER 0x10000000      /* New user namespace.  */
+-+# define CLONE_NEWPID  0x20000000      /* New pid namespace.  */
+-+# define CLONE_NEWNET  0x40000000      /* New network namespace.  */
+-+# define CLONE_IO      0x80000000      /* Clone I/O context.  */
+- #endif
+- 
+- /* The official definition.  */
+-@@ -74,11 +80,9 @@
+- extern int clone (int (*__fn) (void *__arg), void *__child_stack,
+- 		  int __flags, void *__arg, ...) __THROW;
+- 
+--#if 0
+- /* Unshare the specified resources.  */
+- extern int unshare (int __flags) __THROW;
+- #endif
+--#endif
+- 
+- __END_DECLS
+- 
+-diff -Nura uClibc-0.9.31.1.orig/libc/sysdeps/linux/common/Makefile.in uClibc-0.9.31.1/libc/sysdeps/linux/common/Makefile.in
+---- uClibc-0.9.31.1.orig/libc/sysdeps/linux/common/Makefile.in	2011-06-08 15:58:40.000000000 -0300
+-+++ uClibc-0.9.31.1/libc/sysdeps/linux/common/Makefile.in	2011-12-05 08:23:28.353757602 -0300
+-@@ -31,7 +31,8 @@
+- 	remap_file_pages.c sched_getaffinity.c sched_setaffinity.c \
+- 	sendfile64.c sendfile.c setfsgid.c setfsuid.c setresuid.c \
+- 	splice.c vmsplice.c tee.c signalfd.c swapoff.c swapon.c \
+--	sync_file_range.c sysctl.c sysinfo.c timerfd.c uselib.c vhangup.c,$(CSRC))
+-+	sync_file_range.c sysctl.c sysinfo.c timerfd.c unshare.c uselib.c \
+-+	vhangup.c,$(CSRC))
+- endif
+- 
+- ifneq ($(UCLIBC_BSD_SPECIFIC),y)
+-diff -Nura uClibc-0.9.31.1.orig/libc/sysdeps/linux/common/unshare.c uClibc-0.9.31.1/libc/sysdeps/linux/common/unshare.c
+---- uClibc-0.9.31.1.orig/libc/sysdeps/linux/common/unshare.c	1969-12-31 21:00:00.000000000 -0300
+-+++ uClibc-0.9.31.1/libc/sysdeps/linux/common/unshare.c	2011-12-05 08:22:45.954453512 -0300
+-@@ -0,0 +1,21 @@
+-+/* vi: set sw=4 ts=4: */
+-+/*
+-+ * unshare() for uClibc
+-+ *
+-+ * Copyright (C) 2011 Henning Heinold <heinold at inf.fu-berlin.de>
+-+ *
+-+ * Licensed under the LGPL v2.1, see the file COPYING.LIB in this tarball.
+-+ */
+-+
+-+#include <sys/syscall.h>
+-+#include <sched.h>
+-+
+-+#if defined __NR_unshare && defined __UCLIBC_LINUX_SPECIFIC__
+-+_syscall1(int, unshare, int, flags)
+-+#else
+-+int unshare(int flags) 
+-+{   
+-+    __set_errno(ENOSYS);
+-+    return -1;
+-+}
+-+#endif
+diff --git a/package/uclibc/0.9.31.1/0010-workaround-GCC-PR32219.patch b/package/uclibc/0.9.31.1/0010-workaround-GCC-PR32219.patch
+deleted file mode 100644
+index 242a526..0000000
+--- a/package/uclibc/0.9.31.1/0010-workaround-GCC-PR32219.patch
++++ /dev/null
+@@ -1,57 +0,0 @@
+-From 2e53dd645d5348f207cec7f8595969dc566c5a55 Mon Sep 17 00:00:00 2001
+-From: Denys Vlasenko <vda.linux at googlemail.com>
+-Date: Mon, 17 May 2010 15:56:19 +0200
+-Subject: [PATCH] workaround GCC PR32219
+-
+-we ended up calling 0
+-Fixes bug #1033
+-
+-Signed-off-by: Denys Vlasenko <vda.linux at googlemail.com>
+-Signed-off-by: Bernhard Reutner-Fischer <rep.dot.nop at gmail.com>
+----
+- libc/misc/internals/__uClibc_main.c |   15 +++++++++++++--
+- 1 files changed, 13 insertions(+), 2 deletions(-)
+-
+-diff --git a/libc/misc/internals/__uClibc_main.c b/libc/misc/internals/__uClibc_main.c
+-index f9e1244..4ee4443 100644
+---- a/libc/misc/internals/__uClibc_main.c
+-+++ b/libc/misc/internals/__uClibc_main.c
+-@@ -105,6 +105,17 @@ _pthread_cleanup_pop_restore(struct _pthread_cleanup_buffer *__buffer,
+- 
+- #endif /* !SHARED */
+- 
+-+/* Defeat compiler optimization which assumes function addresses are never NULL */
+-+static __always_inline int not_null_ptr(const void *p)
+-+{
+-+	const void *q;
+-+	__asm__ (""
+-+		: "=r" (q) /* output */
+-+		: "0" (p) /* input */
+-+	);
+-+	return q != 0;
+-+}
+-+
+- /*
+-  * Prototypes.
+-  */
+-@@ -254,7 +265,7 @@ void __uClibc_init(void)
+- 
+- #ifdef __UCLIBC_HAS_LOCALE__
+-     /* Initialize the global locale structure. */
+--    if (likely(_locale_init!=NULL))
+-+    if (likely(not_null_ptr(_locale_init)))
+- 	_locale_init();
+- #endif
+- 
+-@@ -264,7 +275,7 @@ void __uClibc_init(void)
+-      * Thus we get a nice size savings because the stdio functions
+-      * won't be pulled into the final static binary unless used.
+-      */
+--    if (likely(_stdio_init != NULL))
+-+    if (likely(not_null_ptr(_stdio_init)))
+- 	_stdio_init();
+- 
+- }
+--- 
+-1.7.1
+-
+diff --git a/package/uclibc/0.9.31.1/0011-startfiles-Make-targets.patch b/package/uclibc/0.9.31.1/0011-startfiles-Make-targets.patch
+deleted file mode 100644
+index 9a7f304..0000000
+--- a/package/uclibc/0.9.31.1/0011-startfiles-Make-targets.patch
++++ /dev/null
+@@ -1,60 +0,0 @@
+-Add startfiles and install_startfiles targets to the top-level Makefile, as
+-in uClibc 0.9.32 and later.
+-
+-Signed-off-by: Simon Dawson <spdawson at gmail.com>
+-
+-diff -Nurp a/Makefile.help b/Makefile.help
+---- a/Makefile.help	2011-06-08 19:58:40.000000000 +0100
+-+++ b/Makefile.help	2013-08-10 21:17:46.572104259 +0100
+-@@ -14,6 +14,7 @@ help:
+- 	@echo 'Build:'
+- 	@echo '  all			- libraries and generated headers'
+- 	@echo '  pregen		- generate headers'
+-+	@echo '  startfiles		- build startfiles (crt)'
+- 	@echo '  utils			- build target utilities'
+- 	@echo '			  (ldd, ldconfig, locale, iconv)'
+- 	@echo '  hostutils		- build host utilities (see utils)'
+-@@ -32,6 +33,7 @@ help:
+- 	@echo '  install		- install both the runtime and the headers'
+- 	@echo '  install_runtime	- install the libraries'
+- 	@echo '  install_dev		- install all headers and static libs'
+-+	@echo '  install_startfiles	- install startfiles (crt)'
+- 	@echo '  install_headers	- install headers excluding generated ones'
+- 	@echo '  install_utils		- install target utilities'
+- 	@echo '  install_hostutils	- install host utilities'
+-diff -Nurp a/Makefile.in b/Makefile.in
+---- a/Makefile.in	2011-06-08 19:58:40.000000000 +0100
+-+++ b/Makefile.in	2013-08-10 21:10:55.248649101 +0100
+-@@ -193,6 +193,8 @@ install: install_runtime install_dev
+- 
+- RUNTIME_PREFIX_LIB_FROM_DEVEL_PREFIX_LIB=$(shell $(top_srcdir)extra/scripts/relative_path.sh $(DEVEL_PREFIX)$(MULTILIB_DIR) $(RUNTIME_PREFIX)$(MULTILIB_DIR))
+- 
+-+startfiles: $(crt-y)
+-+
+- $(top_builddir)extra/scripts/unifdef: |$(top_builddir)extra/scripts
+- $(top_builddir)extra/scripts/unifdef: $(top_srcdir)extra/scripts/unifdef.c
+- 	$(hcompile.u)
+-@@ -301,6 +303,10 @@ else
+- 	cd $(PREFIX)$(DEVEL_PREFIX)include && $(RM) -f wchar-stub.h
+- endif
+- 
+-+# Installs startfiles
+-+install_startfiles: startfiles | $(PREFIX)$(DEVEL_PREFIX)$(MULTILIB_DIR)
+-+	-$(INSTALL) -m 644 $(startfiles) $(PREFIX)$(DEVEL_PREFIX)$(MULTILIB_DIR)/
+-+
+- # Installs development library links.
+- install_dev: install_headers install_runtime | $(PREFIX)$(DEVEL_PREFIX)$(MULTILIB_DIR)
+- 	-$(INSTALL) -m 644 $(top_builddir)lib/*.[ao] $(PREFIX)$(DEVEL_PREFIX)$(MULTILIB_DIR)/
+-diff -Nurp a/Makerules b/Makerules
+---- a/Makerules	2011-06-08 19:58:40.000000000 +0100
+-+++ b/Makerules	2013-08-10 21:24:21.287583111 +0100
+-@@ -406,7 +406,8 @@ endif
+- CRTS_COMPAT :=
+- #endif
+- 
+--$(crt-y): $(CRTS) $(CTOR_TARGETS) $(CRTS_COMPAT) $(CRTRELOC)
+-+startfiles = $(CRTS) $(CTOR_TARGETS) $(CRTS_COMPAT) $(CRTRELOC)
+-+$(crt-y): $(startfiles)
+- $(CRTS) $(CTOR_TARGETS) $(CRTS_COMPAT) $(CRTRELOC): | headers
+- 
+- $(top_builddir)lib/$(NONSHARED_LIBNAME): $(libc-nonshared-y)
+diff --git a/package/uclibc/0.9.31.1/0012-netlinkaccess-header-types.patch b/package/uclibc/0.9.31.1/0012-netlinkaccess-header-types.patch
+deleted file mode 100644
+index bc981a4..0000000
+--- a/package/uclibc/0.9.31.1/0012-netlinkaccess-header-types.patch
++++ /dev/null
+@@ -1,35 +0,0 @@
+-Using kernel headers newer than 3.6.x, uclibc 0.9.31.1 fails to build:
+-
+-  In file included from output/host/usr/avr32-buildroot-linux-uclibc/sysroot/usr/include/linux/rtnetlink.h:6,
+-                 from libc/inet/netlinkaccess.h:34,
+-                 from libc/inet/if_index.c:36:
+-  output/host/usr/avr32-buildroot-linux-uclibc/sysroot/usr/include/linux/if_link.h:314: error: expected specifier-qualifier-list before '__be16'
+-  make[1]: *** [libc/inet/if_index.os] Error 1
+-  make[1]: Leaving directory `output/build/uclibc-0.9.31.1'
+-  make: *** [output/build/uclibc-0.9.31.1/.stamp_built] Error 2
+-
+-This patch adjusts the system type definitions in the netlinkaccess.h
+-header, updating the types to match those used in uClibc 0.9.33.2.
+-
+-Signed-off-by: Simon Dawson <spdawson at gmail.com>
+-
+-diff -Nurp a/libc/inet/netlinkaccess.h b/libc/inet/netlinkaccess.h
+---- a/libc/inet/netlinkaccess.h	2011-06-08 19:58:40.000000000 +0100
+-+++ b/libc/inet/netlinkaccess.h	2012-12-20 12:16:34.251965672 +0000
+-@@ -22,15 +22,8 @@
+- #include <features.h>
+- #include <stdint.h>
+- #include <unistd.h>
+--#include <sys/types.h>
+--
+- #if defined __ASSUME_NETLINK_SUPPORT || defined __UCLIBC_USE_NETLINK__
+--#define _LINUX_TYPES_H
+--typedef uint8_t __u8;
+--typedef uint16_t __u16;
+--typedef uint32_t __u32;
+--typedef uint64_t __u64;
+--typedef int32_t __s32;
+-+#include <asm/types.h>
+- #include <linux/rtnetlink.h>
+- #include <linux/netlink.h>
+- 
+diff --git a/package/uclibc/0.9.31.1/0013-libc-sysdeps-add-__kernel_long-and-__kernel_ulong.patch b/package/uclibc/0.9.31.1/0013-libc-sysdeps-add-__kernel_long-and-__kernel_ulong.patch
+deleted file mode 100644
+index 55cb0c5..0000000
+--- a/package/uclibc/0.9.31.1/0013-libc-sysdeps-add-__kernel_long-and-__kernel_ulong.patch
++++ /dev/null
+@@ -1,21 +0,0 @@
+-libc/sysdeps: add __kernel_long and __kernel_ulong
+-
+-Linux 3.4 added __kernel_long_t and __kernel_ulong_t and various
+-exported header files were updated to use these new types. Add the
+-definitions for __kernel_long_t and __kernel_ulong_t to the relevant
+-kernel_types.h headers.
+-
+-Signed-off-by: Simon Dawson <spdawson at gmail.com>
+-
+-diff -Nurp a/libc/sysdeps/linux/avr32/bits/kernel_types.h b/libc/sysdeps/linux/avr32/bits/kernel_types.h
+---- a/libc/sysdeps/linux/avr32/bits/kernel_types.h	2011-06-08 19:58:40.000000000 +0100
+-+++ b/libc/sysdeps/linux/avr32/bits/kernel_types.h	2013-11-15 08:01:09.209037851 +0000
+-@@ -39,6 +39,8 @@ typedef unsigned int		__kernel_gid32_t;
+- typedef unsigned short		__kernel_old_uid_t;
+- typedef unsigned short		__kernel_old_gid_t;
+- typedef unsigned short		__kernel_old_dev_t;
+-+typedef long			__kernel_long_t;
+-+typedef unsigned long		__kernel_ulong_t;
+- 
+- #ifdef __GNUC__
+- typedef long long		__kernel_loff_t;
+diff --git a/package/uclibc/0.9.31.1/0014-Do-not-include-__iconv_codesets-into-iconv-utility.patch b/package/uclibc/0.9.31.1/0014-Do-not-include-__iconv_codesets-into-iconv-utility.patch
+deleted file mode 100644
+index 4b6a701..0000000
+--- a/package/uclibc/0.9.31.1/0014-Do-not-include-__iconv_codesets-into-iconv-utility.patch
++++ /dev/null
+@@ -1,79 +0,0 @@
+-uclibc: Do not include __iconv_codesets into iconv utility
+-
+-Backporting an upstream patch to fix a problem in the install step:
+-
+-make[1]: Entering directory `/br/output/build/uclibc-0.9.31.1'
+-make[2]: Nothing to be done for `locale_headers'.
+-	CC utils/getconf
+-	STRIP -x -R .note -R .comment ../utils/getconf
+-	CC utils/iconv
+-../lib/libc.a(iconv.os):(.rodata+0x18): multiple definition of
+-`__iconv_codesets'
+-/tmp/ccVmV8Lq.o:(.rodata+0x18): first defined here
+-collect2: error: ld returned 1 exit status
+-
+-Upstream commit:
+-	http://git.uclibc.org/uClibc/commit/?id=d46dc8bc88e38251bfa3712efe7abf62933f5419
+-
+-Signed-off-by: Vicente Olivert Riera <Vincent.Riera at imgtec.com>
+-
+-From d46dc8bc88e38251bfa3712efe7abf62933f5419 Mon Sep 17 00:00:00 2001
+-From: Peter S. Mazinger <ps.m at gmx.net>
+-Date: Thu, 24 Mar 2011 00:15:25 +0000
+-Subject: iconv: Do not include __iconv_codesets into iconv utility
+-
+-Host iconv needs only L_iconv_main defined and __iconv_codesets
+-has to included, as host system does not provide it.
+-Keep __iconv_codesets out of iconv linked against uClibc.
+-
+-Signed-off-by: Peter S. Mazinger <ps.m at gmx.net>
+-Signed-off-by: Bernhard Reutner-Fischer <rep.dot.nop at gmail.com>
+----
+-diff --git a/libc/misc/wchar/wchar.c b/libc/misc/wchar/wchar.c
+-index 412c557..0704096 100644
+---- a/libc/misc/wchar/wchar.c
+-+++ b/libc/misc/wchar/wchar.c
+-@@ -1196,6 +1196,9 @@ libc_hidden_proto(__iconv_codesets)
+- #endif
+- 
+- #if defined L_iconv || defined L_iconv_main
+-+# ifdef L_iconv_main
+-+static
+-+# endif
+- const unsigned char __iconv_codesets[] =
+- 	"\x0a\xe0""WCHAR_T\x00"		/* superset of UCS-4 but platform-endian */
+- #if __BYTE_ORDER == __BIG_ENDIAN
+-diff --git a/utils/Makefile.in b/utils/Makefile.in
+-index bb85be3..1714d28 100644
+---- a/utils/Makefile.in
+-+++ b/utils/Makefile.in
+-@@ -36,8 +36,7 @@ CFLAGS-ldd := $(CFLAGS-utils-shared) -DBUILDING_LINKAGE
+- # Need CFLAGS-utils explicitly, because the source file is not located in utils
+- CFLAGS-iconv := $(CFLAGS-utils) \
+-     $(CFLAGS-utils-shared) \
+--    -I$(top_srcdir)libc/misc/wchar \
+--    -DL_iconv_main \
+-+    -I$(top_srcdir)libc/misc/wchar
+- 
+- CFLAGS-locale := $(CFLAGS-utils)
+- CFLAGS-getconf :=$(CFLAGS-utils) \
+-diff --git a/utils/iconv.c b/utils/iconv.c
+-index 04e2c32..a0260df 100644
+---- a/utils/iconv.c
+-+++ b/utils/iconv.c
+-@@ -108,7 +108,12 @@
+- #include <wchar.h>
+- #include "wchar.c" /* for _UC_iconv_t and __iconv_codesets */
+- 
+--extern const unsigned char __iconv_codesets[];
+-+#ifdef L_iconv_main
+-+static
+-+#else
+-+extern
+-+#endif
+-+const unsigned char __iconv_codesets[];
+- 
+- #define IBUF BUFSIZ
+- #define OBUF BUFSIZ
+---
+-cgit v0.9.1
+diff --git a/package/uclibc/0.9.33.2/0004-libc-sysdeps-add-__kernel_long-and-__kernel_ulong.patch b/package/uclibc/0.9.33.2/0004-libc-sysdeps-add-__kernel_long-and-__kernel_ulong.patch
+index 0381ba8..edd68f1 100644
+--- a/package/uclibc/0.9.33.2/0004-libc-sysdeps-add-__kernel_long-and-__kernel_ulong.patch
++++ b/package/uclibc/0.9.33.2/0004-libc-sysdeps-add-__kernel_long-and-__kernel_ulong.patch
+@@ -15,9 +15,12 @@ This change was automated with the following scriptlet
+   typedef long\t\t__kernel_long_t;\
+   typedef unsigned long\t__kernel_ulong_t;'
+ 
+-Whitespace in arm, avr32, hppa, sparc was then manually fixed up.
++Whitespace in arm, hppa, sparc was then manually fixed up.
+ 
+ Signed-off-by: Chris Packham <chris.packham at alliedtelesis.co.nz>
++[yann.morin.1998 at free.fr: remove avr32 bits, now Buildroot no longer
++ supports it]
++Signed-off-by: "Yann E. MORIN" <yann.morin.1998 at free.fr>
+ --
+ Here's a cleaned up patch which should get the whitespace right. I'm a
+ bit iffy about the sparc changes they make sense to me but it's not a
+@@ -27,7 +30,6 @@ I can break this up per arch or per maintainer if requested.
+ 
+  libc/sysdeps/linux/alpha/bits/kernel_types.h      |    2 ++
+  libc/sysdeps/linux/arm/bits/kernel_types.h        |    2 ++
+- libc/sysdeps/linux/avr32/bits/kernel_types.h      |    2 ++
+  libc/sysdeps/linux/bfin/bits/kernel_types.h       |    2 ++
+  libc/sysdeps/linux/c6x/bits/kernel_types.h        |    2 ++
+  libc/sysdeps/linux/cris/bits/kernel_types.h       |    2 ++
+@@ -54,7 +56,6 @@ Signed-off-by: Thomas Petazzoni <thomas.petazzoni at free-electrons.com>
+ ---
+  libc/sysdeps/linux/alpha/bits/kernel_types.h      | 2 ++
+  libc/sysdeps/linux/arm/bits/kernel_types.h        | 2 ++
+- libc/sysdeps/linux/avr32/bits/kernel_types.h      | 2 ++
+  libc/sysdeps/linux/bfin/bits/kernel_types.h       | 2 ++
+  libc/sysdeps/linux/c6x/bits/kernel_types.h        | 2 ++
+  libc/sysdeps/linux/cris/bits/kernel_types.h       | 2 ++
+@@ -102,19 +103,6 @@ index 766a306..6b36f32 100644
+  
+  typedef struct {
+  #ifdef __USE_ALL
+-diff --git a/libc/sysdeps/linux/avr32/bits/kernel_types.h b/libc/sysdeps/linux/avr32/bits/kernel_types.h
+-index f7d8b52..c551d57 100644
+---- a/libc/sysdeps/linux/avr32/bits/kernel_types.h
+-+++ b/libc/sysdeps/linux/avr32/bits/kernel_types.h
+-@@ -39,6 +39,8 @@ typedef unsigned int		__kernel_gid32_t;
+- typedef unsigned short		__kernel_old_uid_t;
+- typedef unsigned short		__kernel_old_gid_t;
+- typedef unsigned short		__kernel_old_dev_t;
+-+typedef long			__kernel_long_t;
+-+typedef unsigned long		__kernel_ulong_t;
+- 
+- #ifdef __GNUC__
+- typedef long long		__kernel_loff_t;
+ diff --git a/libc/sysdeps/linux/bfin/bits/kernel_types.h b/libc/sysdeps/linux/bfin/bits/kernel_types.h
+ index d69a875..9fec595 100644
+ --- a/libc/sysdeps/linux/bfin/bits/kernel_types.h
+diff --git a/package/uclibc/0.9.33.2/0005-Patch-from-OpenWRT-for-avr32.patch b/package/uclibc/0.9.33.2/0005-Patch-from-OpenWRT-for-avr32.patch
+deleted file mode 100644
+index 9b6be2b..0000000
+--- a/package/uclibc/0.9.33.2/0005-Patch-from-OpenWRT-for-avr32.patch
++++ /dev/null
+@@ -1,28 +0,0 @@
+-From b0bbb35065e1c8fdd308573f38eed35c30760d87 Mon Sep 17 00:00:00 2001
+-From: Thomas Petazzoni <thomas.petazzoni at free-electrons.com>
+-Date: Sat, 13 Jul 2013 17:14:49 +0200
+-Subject: [PATCH 5/8] Patch from OpenWRT for avr32.
+-
+-https://dev.openwrt.org/browser/trunk/toolchain/uClibc/patches-0.9.32/140-avr32_atomic_fix.patch
+-
+-Signed-off-by: Simon Dawson <spdawson at gmail.com>
+-Signed-off-by: Thomas Petazzoni <thomas.petazzoni at free-electrons.com>
+----
+- libc/sysdeps/linux/avr32/bits/atomic.h | 1 +
+- 1 file changed, 1 insertion(+)
+-
+-diff --git a/libc/sysdeps/linux/avr32/bits/atomic.h b/libc/sysdeps/linux/avr32/bits/atomic.h
+-index e6be41f..3bc2aee 100644
+---- a/libc/sysdeps/linux/avr32/bits/atomic.h
+-+++ b/libc/sysdeps/linux/avr32/bits/atomic.h
+-@@ -28,6 +28,7 @@ typedef uintmax_t uatomic_max_t;
+- 
+- #define __arch_compare_and_exchange_val_32_acq(mem, newval, oldval)	\
+- 	({								\
+-+		__uint32_t __result;					\
+- 		__typeof__(*(mem)) __prev;				\
+- 		__asm__ __volatile__(					\
+- 			"/* __arch_compare_and_exchange_val_32_acq */\n" \
+--- 
+-1.8.1.2
+-
+diff --git a/package/uclibc/Config.in b/package/uclibc/Config.in
+index 020c47c..aa99a6f 100644
+--- a/package/uclibc/Config.in
++++ b/package/uclibc/Config.in
+@@ -13,13 +13,9 @@ choice
+ 	help
+ 	  Select the version of uClibc you wish to use.
+ 
+-	config BR2_UCLIBC_VERSION_0_9_31
+-		bool "uClibc 0.9.31.x"
+-		depends on BR2_avr32
+-
+ 	config BR2_UCLIBC_VERSION_0_9_33
+ 		bool "uClibc 0.9.33.x"
+-		depends on !(BR2_arc || BR2_avr32 || BR2_xtensa)
++		depends on !(BR2_arc || BR2_xtensa)
+ 
+ 	config BR2_UCLIBC_VERSION_XTENSA_GIT
+ 		bool "uClibc Git Xtensa"
+@@ -40,7 +36,6 @@ config BR2_USE_UCLIBC_SNAPSHOT
+ 
+ config BR2_UCLIBC_VERSION_STRING
+ 	string
+-	default 0.9.31.1	if BR2_UCLIBC_VERSION_0_9_31
+ 	default 0.9.33.2	if BR2_UCLIBC_VERSION_0_9_33
+ 	default "arc-2014.12" if BR2_arc
+ 	default "7bf35c8b7d4a1f97174eb49f47f33946b282114c" if BR2_UCLIBC_VERSION_XTENSA_GIT
+@@ -48,7 +43,6 @@ config BR2_UCLIBC_VERSION_STRING
+ 
+ config BR2_UCLIBC_CONFIG
+ 	string "uClibc configuration file to use?"
+-	default "package/uclibc/uClibc-0.9.31.config" if BR2_UCLIBC_VERSION_0_9_31
+ 	default "package/uclibc/uClibc-0.9.33.config" if BR2_UCLIBC_VERSION_0_9_33
+ 	default "package/uclibc/uClibc-snapshot.config" if BR2_arc
+ 	default "package/uclibc/uClibc-snapshot.config" if BR2_UCLIBC_VERSION_SNAPSHOT
+@@ -98,7 +92,7 @@ config BR2_TOOLCHAIN_BUILDROOT_LOCALE
+ 
+ choice
+ 	prompt "Thread library implementation"
+-	default BR2_PTHREADS_NATIVE if !(BR2_avr32 || BR2_xtensa)
++	default BR2_PTHREADS_NATIVE if !BR2_xtensa
+ 	default BR2_PTHREADS_OLD
+ 	help
+ 	  Use this option to select the thread library implementation
+@@ -125,7 +119,6 @@ choice
+ 		select BR2_TOOLCHAIN_HAS_THREADS
+ 		select BR2_TOOLCHAIN_HAS_THREADS_NPTL
+ 		depends on !BR2_arc
+-		depends on !BR2_avr32
+ 		depends on !BR2_bfin
+ 		depends on !BR2_xtensa
+ 		depends on !BR2_x86_i386
+@@ -183,7 +176,6 @@ config BR2_UCLIBC_TARGET_ARCH
+ 	string
+ 	default arc	   if BR2_arcle || BR2_arceb
+ 	default arm	   if BR2_arm	|| BR2_armeb
+-	default avr32	   if BR2_avr32
+ 	default bfin	   if BR2_bfin
+ 	default m68k	   if BR2_m68k
+ 	default mips	   if BR2_mips || BR2_mipsel || BR2_mips64 || BR2_mips64el
+diff --git a/package/uclibc/uClibc-0.9.31.config b/package/uclibc/uClibc-0.9.31.config
+deleted file mode 100644
+index 83df7d0..0000000
+--- a/package/uclibc/uClibc-0.9.31.config
++++ /dev/null
+@@ -1,258 +0,0 @@
+-#
+-# Automatically generated make config: don't edit
+-# Version: 0.9.31
+-# Sun Apr  4 10:43:39 2010
+-#
+-# TARGET_alpha is not set
+-# TARGET_arm is not set
+-# TARGET_avr32 is not set
+-# TARGET_bfin is not set
+-# TARGET_cris is not set
+-# TARGET_e1 is not set
+-# TARGET_frv is not set
+-# TARGET_h8300 is not set
+-# TARGET_hppa is not set
+-# TARGET_i386 is not set
+-# TARGET_i960 is not set
+-# TARGET_ia64 is not set
+-# TARGET_m68k is not set
+-# TARGET_microblaze is not set
+-# TARGET_mips is not set
+-# TARGET_nios is not set
+-# TARGET_nios2 is not set
+-# TARGET_powerpc is not set
+-# TARGET_sh is not set
+-# TARGET_sh64 is not set
+-# TARGET_sparc is not set
+-# TARGET_v850 is not set
+-# TARGET_vax is not set
+-# TARGET_x86_64 is not set
+-# TARGET_xtensa is not set
+-
+-#
+-# Target Architecture Features and Options
+-#
+-TARGET_ARCH="none"
+-FORCE_OPTIONS_FOR_ARCH=y
+-# ARCH_LITTLE_ENDIAN is not set
+-# ARCH_BIG_ENDIAN is not set
+-# ARCH_WANTS_LITTLE_ENDIAN is not set
+-# ARCH_WANTS_BIG_ENDIAN is not set
+-TARGET_SUBARCH=""
+-
+-#
+-# Using Little Endian
+-#
+-ARCH_HAS_MMU=y
+-ARCH_USE_MMU=y
+-UCLIBC_HAS_FLOATS=y
+-UCLIBC_HAS_FPU=y
+-DO_C99_MATH=y
+-# DO_XSI_MATH is not set
+-# UCLIBC_HAS_FENV is not set
+-UCLIBC_HAS_LONG_DOUBLE_MATH=y
+-KERNEL_HEADERS="/usr/src/linux/include"
+-HAVE_DOT_CONFIG=y
+-
+-#
+-# General Library Settings
+-#
+-# HAVE_NO_PIC is not set
+-DOPIC=y
+-# ARCH_HAS_NO_SHARED is not set
+-# ARCH_HAS_NO_LDSO is not set
+-# FORCE_SHAREABLE_TEXT_SEGMENTS is not set
+-LDSO_LDD_SUPPORT=y
+-# LDSO_CACHE_SUPPORT is not set
+-# LDSO_PRELOAD_FILE_SUPPORT is not set
+-# UCLIBC_STATIC_LDCONFIG is not set
+-LDSO_RUNPATH=y
+-LDSO_SEARCH_INTERP_PATH=y
+-UCLIBC_CTOR_DTOR=y
+-# LDSO_GNU_HASH_SUPPORT is not set
+-# HAS_NO_THREADS is not set
+-LINUXTHREADS_OLD=y
+-# LINUXTHREADS_NEW is not set
+-UCLIBC_HAS_THREADS=y
+-# PTHREADS_DEBUG_SUPPORT is not set
+-UCLIBC_HAS_SYSLOG=y
+-UCLIBC_HAS_LFS=y
+-# MALLOC is not set
+-# MALLOC_SIMPLE is not set
+-MALLOC_STANDARD=y
+-MALLOC_GLIBC_COMPAT=y
+-UCLIBC_DYNAMIC_ATEXIT=y
+-# COMPAT_ATEXIT is not set
+-UCLIBC_SUSV3_LEGACY=y
+-# UCLIBC_SUSV3_LEGACY_MACROS is not set
+-UCLIBC_SUSV4_LEGACY=y
+-# UCLIBC_HAS_STUBS is not set
+-UCLIBC_HAS_SHADOW=y
+-UCLIBC_HAS_PROGRAM_INVOCATION_NAME=y
+-UCLIBC_HAS___PROGNAME=y
+-UCLIBC_HAS_PTY=y
+-ASSUME_DEVPTS=y
+-UNIX98PTY_ONLY=y
+-UCLIBC_HAS_GETPT=y
+-UCLIBC_HAS_LIBUTIL=y
+-UCLIBC_HAS_TM_EXTENSIONS=y
+-UCLIBC_HAS_TZ_CACHING=y
+-UCLIBC_HAS_TZ_FILE=y
+-UCLIBC_HAS_TZ_FILE_READ_MANY=y
+-UCLIBC_TZ_FILE_PATH="/etc/TZ"
+-
+-#
+-# Advanced Library Settings
+-#
+-UCLIBC_PWD_BUFFER_SIZE=256
+-UCLIBC_GRP_BUFFER_SIZE=256
+-
+-#
+-# Support various families of functions
+-#
+-UCLIBC_LINUX_MODULE_24=y
+-UCLIBC_LINUX_SPECIFIC=y
+-UCLIBC_HAS_GNU_ERROR=y
+-UCLIBC_BSD_SPECIFIC=y
+-UCLIBC_HAS_BSD_ERR=y
+-# UCLIBC_HAS_OBSOLETE_BSD_SIGNAL is not set
+-# UCLIBC_HAS_OBSOLETE_SYSV_SIGNAL is not set
+-# UCLIBC_NTP_LEGACY is not set
+-UCLIBC_SV4_DEPRECATED=y
+-UCLIBC_HAS_REALTIME=y
+-UCLIBC_HAS_ADVANCED_REALTIME=y
+-UCLIBC_HAS_EPOLL=y
+-UCLIBC_HAS_XATTR=y
+-UCLIBC_HAS_PROFILING=y
+-UCLIBC_HAS_CRYPT_IMPL=y
+-UCLIBC_HAS_CRYPT=y
+-UCLIBC_HAS_NETWORK_SUPPORT=y
+-UCLIBC_HAS_SOCKET=y
+-UCLIBC_HAS_IPV4=y
+-# UCLIBC_HAS_IPV6 is not set
+-# UCLIBC_HAS_RPC is not set
+-# UCLIBC_HAS_FULL_RPC is not set
+-# UCLIBC_HAS_REENTRANT_RPC is not set
+-UCLIBC_USE_NETLINK=y
+-UCLIBC_SUPPORT_AI_ADDRCONFIG=y
+-# UCLIBC_HAS_BSD_RES_CLOSE is not set
+-UCLIBC_HAS_COMPAT_RES_STATE=y
+-# UCLIBC_HAS_EXTRA_COMPAT_RES_STATE is not set
+-UCLIBC_HAS_LIBRESOLV_STUB=y
+-UCLIBC_HAS_LIBNSL_STUB=y
+-
+-#
+-# String and Stdio Support
+-#
+-UCLIBC_HAS_STRING_GENERIC_OPT=y
+-UCLIBC_HAS_STRING_ARCH_OPT=y
+-UCLIBC_HAS_CTYPE_TABLES=y
+-UCLIBC_HAS_CTYPE_SIGNED=y
+-# UCLIBC_HAS_CTYPE_UNSAFE is not set
+-UCLIBC_HAS_CTYPE_CHECKED=y
+-# UCLIBC_HAS_CTYPE_ENFORCED is not set
+-# UCLIBC_HAS_WCHAR is not set
+-# UCLIBC_HAS_LOCALE is not set
+-UCLIBC_HAS_HEXADECIMAL_FLOATS=y
+-UCLIBC_HAS_GLIBC_CUSTOM_PRINTF=y
+-# USE_OLD_VFPRINTF is not set
+-UCLIBC_PRINTF_SCANF_POSITIONAL_ARGS=9
+-UCLIBC_HAS_SCANF_GLIBC_A_FLAG=y
+-# UCLIBC_HAS_STDIO_BUFSIZ_NONE is not set
+-# UCLIBC_HAS_STDIO_BUFSIZ_256 is not set
+-# UCLIBC_HAS_STDIO_BUFSIZ_512 is not set
+-# UCLIBC_HAS_STDIO_BUFSIZ_1024 is not set
+-# UCLIBC_HAS_STDIO_BUFSIZ_2048 is not set
+-UCLIBC_HAS_STDIO_BUFSIZ_4096=y
+-# UCLIBC_HAS_STDIO_BUFSIZ_8192 is not set
+-UCLIBC_HAS_STDIO_BUILTIN_BUFFER_NONE=y
+-# UCLIBC_HAS_STDIO_BUILTIN_BUFFER_4 is not set
+-# UCLIBC_HAS_STDIO_BUILTIN_BUFFER_8 is not set
+-# UCLIBC_HAS_STDIO_SHUTDOWN_ON_ABORT is not set
+-# UCLIBC_HAS_STDIO_GETC_MACRO is not set
+-# UCLIBC_HAS_STDIO_PUTC_MACRO is not set
+-UCLIBC_HAS_STDIO_AUTO_RW_TRANSITION=y
+-# UCLIBC_HAS_FOPEN_LARGEFILE_MODE is not set
+-UCLIBC_HAS_FOPEN_EXCLUSIVE_MODE=y
+-UCLIBC_HAS_GLIBC_CUSTOM_STREAMS=y
+-UCLIBC_HAS_PRINTF_M_SPEC=y
+-UCLIBC_HAS_ERRNO_MESSAGES=y
+-# UCLIBC_HAS_SYS_ERRLIST is not set
+-UCLIBC_HAS_SIGNUM_MESSAGES=y
+-# UCLIBC_HAS_SYS_SIGLIST is not set
+-UCLIBC_HAS_GNU_GETOPT=y
+-# UCLIBC_HAS_GNU_GETSUBOPT is not set
+-
+-#
+-# Big and Tall
+-#
+-UCLIBC_HAS_REGEX=y
+-# UCLIBC_HAS_REGEX_OLD is not set
+-UCLIBC_HAS_FNMATCH=y
+-# UCLIBC_HAS_FNMATCH_OLD is not set
+-# UCLIBC_HAS_WORDEXP is not set
+-UCLIBC_HAS_NFTW=y
+-UCLIBC_HAS_FTW=y
+-UCLIBC_HAS_GLOB=y
+-UCLIBC_HAS_GNU_GLOB=y
+-
+-#
+-# Library Installation Options
+-#
+-RUNTIME_PREFIX="/"
+-DEVEL_PREFIX="/usr/"
+-MULTILIB_DIR="lib"
+-HARDWIRED_ABSPATH=y
+-
+-#
+-# Security options
+-#
+-# UCLIBC_BUILD_PIE is not set
+-# UCLIBC_HAS_ARC4RANDOM is not set
+-# HAVE_NO_SSP is not set
+-UCLIBC_HAS_SSP=y
+-# UCLIBC_HAS_SSP_COMPAT is not set
+-# SSP_QUICK_CANARY is not set
+-PROPOLICE_BLOCK_ABRT=y
+-# PROPOLICE_BLOCK_SEGV is not set
+-# UCLIBC_BUILD_SSP is not set
+-UCLIBC_BUILD_RELRO=y
+-UCLIBC_BUILD_NOW=y
+-UCLIBC_BUILD_NOEXECSTACK=y
+-
+-#
+-# uClibc development/debugging options
+-#
+-CROSS_COMPILER_PREFIX=""
+-UCLIBC_EXTRA_CFLAGS=""
+-# DODEBUG is not set
+-# DODEBUG_PT is not set
+-# DOSTRIP is not set
+-# DOASSERTS is not set
+-# SUPPORT_LD_DEBUG is not set
+-# SUPPORT_LD_DEBUG_EARLY is not set
+-# UCLIBC_MALLOC_DEBUGGING is not set
+-WARNINGS="-Wall"
+-# EXTRA_WARNINGS is not set
+-# DOMULTI is not set
+-# UCLIBC_MJN3_ONLY is not set
+-
+-USE_BX=y
+-# CONFIG_GENERIC_ARM is not set
+-# CONFIG_ARM610 is not set
+-# CONFIG_ARM710 is not set
+-# CONFIG_ARM7TDMI is not set
+-# CONFIG_ARM720T is not set
+-# CONFIG_ARM920T is not set
+-# CONFIG_ARM922T is not set
+-# CONFIG_ARM926T is not set
+-# CONFIG_ARM10T is not set
+-# CONFIG_ARM1136JF_S is not set
+-# CONFIG_ARM1176JZ_S is not set
+-# CONFIG_ARM1176JZF_S is not set
+-# CONFIG_ARM_CORTEX_M3 is not set
+-# CONFIG_ARM_CORTEX_M1 is not set
+-# CONFIG_ARM_SA110 is not set
+-# CONFIG_ARM_SA1100 is not set
+-# CONFIG_ARM_XSCALE is not set
+-# CONFIG_ARM_IWMMXT is not set
+diff --git a/package/uclibc/uclibc.mk b/package/uclibc/uclibc.mk
+index 8654926..40e6c6c 100644
+--- a/package/uclibc/uclibc.mk
++++ b/package/uclibc/uclibc.mk
+@@ -193,16 +193,6 @@ endif
+ endif # bfin
+ 
+ #
+-# AVR32 definitions
+-#
+-
+-ifeq ($(UCLIBC_TARGET_ARCH),avr32)
+-define UCLIBC_AVR32_CONFIG
+-	$(call KCONFIG_ENABLE_OPT,LINKRELAX,$(@D)/.config)
+-endef
+-endif # avr32
+-
+-#
+ # x86 definitions
+ #
+ ifeq ($(UCLIBC_TARGET_ARCH),i386)
+@@ -432,7 +422,6 @@ define UCLIBC_KCONFIG_FIXUP_CMDS
+ 	$(UCLIBC_SH_TYPE_CONFIG)
+ 	$(UCLIBC_SPARC_TYPE_CONFIG)
+ 	$(UCLIBC_POWERPC_TYPE_CONFIG)
+-	$(UCLIBC_AVR32_CONFIG)
+ 	$(UCLIBC_BFIN_CONFIG)
+ 	$(UCLIBC_X86_TYPE_CONFIG)
+ 	$(UCLIBC_ENDIAN_CONFIG)
+@@ -459,21 +448,9 @@ define UCLIBC_BUILD_TEST_SUITE
+ endef
+ endif
+ 
+-# In uClibc 0.9.31 parallel building is broken so we have to disable it
+-# Fortunately uClibc 0.9.31 is only used by AVR32 and in its turn AVR32 is
+-# about to be removed from buildroot.
+-#
+-# So as soon as AVR32 is removed please revert this patch so instead of
+-# UCLIBC_MAKE normal "MAKE" is used in UCLIBC_BUILD_CMDS
+-ifeq ($(BR2_UCLIBC_VERSION_0_9_31),y)
+-	UCLIBC_MAKE = $(MAKE1)
+-else
+-	UCLIBC_MAKE = $(MAKE)
+-endif
+-
+ define UCLIBC_BUILD_CMDS
+-	$(UCLIBC_MAKE) -C $(@D) $(UCLIBC_MAKE_FLAGS) headers
+-	$(UCLIBC_MAKE) -C $(@D) $(UCLIBC_MAKE_FLAGS)
++	$(MAKE) -C $(@D) $(UCLIBC_MAKE_FLAGS) headers
++	$(MAKE) -C $(@D) $(UCLIBC_MAKE_FLAGS)
+ 	$(MAKE) -C $(@D)/utils \
+ 		PREFIX=$(HOST_DIR) \
+ 		HOSTCC="$(HOSTCC)" hostutils
